@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-10-28 14:24:51"
    requires="5.07"
-   version="1.0"
+   version="1.1"
    >
 
 </plugin>
@@ -28,23 +28,10 @@
    group="auction"
    name="bid_item_new"
    enabled="y"
-   match="^Auction\: (?P<seller>\w+?) is (\w+?) (.+?) \(Level (\d+?)\, Num (?P<num>\d+?)\)\. Current bid is (.+?)\.$"
+   match="^Auction\: (?P<seller>\w+?) is (?P<action>\w+?) (?P<item_desc>.+?) \(Level (?P<level>\d+?)\, Num (?P<num>\d+?)\)\. Current bid is (?P<amount>.+?)\.$"
    regexp="y"
    send_to="12"
-   script="hlink_bid"
-   omit_from_output="y"
-   sequence="600"
-  >
-  </trigger>
-
-  <trigger
-   group="auction"
-   name="bid_list"
-   enabled="y"
-   match="^(?P<num>.*\d+?)[ ]\-[ ](?P<seller>\w+?)(?:[ ]+)(.*?)(?:[ ]+)(\d+?)(?:[ ]+)([\d,-]+?)(?:[ ]+)(.+?)$"
-   regexp="y"
-   send_to="12"
-   script="hlink_bid"
+   script="hlink_auc_item"
    omit_from_output="y"
    sequence="600"
   >
@@ -57,7 +44,20 @@
    match="^Auction\: (?P<bidder>\w+?) has placed a bid for (?P<amount>[\d,-]+?) (?P<currency>\w+?) on (?P<item_desc>.+?) \(Level (?P<level>\d+?)\, Num (?P<num>\d+?)\)\.$"
    regexp="y"
    send_to="12"
-   script="hlink_bid"
+   script="hlink_auc_item"
+   omit_from_output="y"
+   sequence="600"
+  >
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="bid_list"
+   enabled="y"
+   match="^(?P<num>.*\d+?)[ ]\-[ ](?P<seller>\w+?)(?:[ ]+)(?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<last_bid>[\d,-]+?)(?:[ ]+)(?P<time>.+?)$"
+   regexp="y"
+   send_to="12"
+   script="hlink_auc_list"
    omit_from_output="y"
    sequence="600"
   >
@@ -67,10 +67,23 @@
    group="auction"
    name="lbid_item_new"
    enabled="y"
-   match="^Market\: (?P<seller>\w+?) is (\w+?) (.+?) \(Level (\d+?)\, Num (?P<num>\d+?)\)\. Auction is for (\w+?)\.$"
+   match="^Market\: (?P<seller>\w+?) is (?P<action>\w+?) (?P<item_desc>.+?) \(Level (?P<level>\d+?)\, Num (?P<num>\d+?)\)\. Auction is for (?P<currency>\w+?)\.$"
    regexp="y"
    send_to="12"
-   script="hlink_lbid"
+   script="hlink_auc_item"
+   omit_from_output="y"
+   sequence="600"
+  >
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="lbid_outbid"
+   enabled="y"
+   match="^Market\: (?P<bidder>\w+?) has[ ](proxy[ ]|)bid (?P<amount>[\d,-]+?) (?P<currency>\w+?) on (.+?) \(Level (?P<level>\d+?)\, Num (?P<num>\d+?)\)\.$"
+   regexp="y"
+   send_to="12"
+   script="hlink_auc_item"
    omit_from_output="y"
    sequence="600"
   >
@@ -80,10 +93,10 @@
    group="auction"
    name="lbid_item_last_min_notif"
    enabled="y"
-   match="^Market\: Bid of ([\d,-]+?) (\w+?) on (.+) \(Level (\d+?)\, Num (?P<num>\d+?)\)$"
+   match="^Market\: Bid of (?P<amount>[\d,-]+?) (?P<currency>\w+?) on (?P<item_desc>.+) \(Level (?P<level>\d+?)\, Num (?P<num>\d+?)\)$"
    regexp="y"
    send_to="12"
-   script="hlink_lbid"
+   script="hlink_auc_item"
    omit_from_output="y"
    sequence="600"
   >
@@ -93,10 +106,10 @@
    group="auction"
    name="lbid_list"
    enabled="y"
-   match="^(?P<num>.*\d+?)[ ](.*?)(?:[ ]+)(\d+?)(?:[ ]+)(\*Gold|Gold|Qp|Tp)(?:[ ]+)([\d,-]+?)(?:[ ]+)(\d+?)(?:[ ]+)(.+?)$"
+   match="^(?P<num>.*\d+?)[ ](?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<currency>\*Gold|Gold|Qp|Tp)(?:[ ]+)(?P<last_bid>[\d,-]+?)(?:[ ]+)(?P<bids>\d+?)(?:[ ]+)(?P<time_left>.+?)$"
    regexp="y"
    send_to="12"
-   script="hlink_lbid"
+   script="hlink_auc_list"
    omit_from_output="y"
    sequence="600"
   >
@@ -201,7 +214,7 @@ SetVariable("start_auc_line", 1)
 
 <aliases>
   <alias
-   match="bx *"
+   match="bxa *"
    enabled="y"
    group="auction"
    send_to="12"
@@ -209,7 +222,9 @@ SetVariable("start_auc_line", 1)
    sequence="300"
   >
   <send>
-Execute("bid %1")
+local cmd = "bid " .. %1
+Execute(cmd)
+SetVariable("last_cmd", cmd)
   </send>
   </alias>
 
@@ -222,20 +237,21 @@ Execute("bid %1")
    sequence="300"
   >
   <send>
-Execute("lbid %1")
+local cmd = "lbid " .. %1
+Execute(cmd)
+SetVariable("last_cmd", cmd)
   </send>
   </alias>
 
   <alias
-   match="bx"
+   match="^bx(?:[ ]+(\d+?))?$"
+   regexp="y"
    enabled="y"
    group="auction"
    send_to="12"
+   script="bx_display_item_or_bid_amount"
    sequence="200"
   >
-  <send>
-Execute(GetVariable("last_cmd"))
-  </send>
   </alias>
 </aliases>
 
@@ -276,39 +292,81 @@ function save_info(name, line, wildcards, styles)
   table.insert(t_data, styles)
 end
 
-function hlink_num(cmd, num, styles)
+function hlink_auc_item(name, line, wildcards, styles)
+  local cmd_line = ""
+
+  if (string.match(name, "lbid")) then
+    cmd_line = "bxm " .. wildcards.num
+  else
+    cmd_line = "bxa " .. wildcards.num
+  end
+
+  local is_done_checking = {
+    ["level"] = false,
+    ["num"] = false,
+  }
+  
   for _, v in ipairs(styles) do
     local text_color = RGBColourToName(v.textcolour)
     local text_bgcolor = RGBColourToName(v.backcolour)
 
-    if (string.match(v.text, num)) then
-      local str = v.text
-      local cmd_line = cmd .. num
-      
-      for i = 1, #str do
-        if (str:sub(i, i) == " ") then
+    if (not is_done_checking["level"]) and (string.match(v.text, wildcards.level)) and (string.len(v.text) == string.len(wildcards.level)) then
+      ColourTell(text_color, text_bgcolor, wildcards.level)
+      is_done_checking["level"] = true
+    elseif (not is_done_checking["num"]) and (string.match(v.text, wildcards.num)) and (string.len(v.text) == string.len(wildcards.num)) then
+      Hyperlink(cmd_line, wildcards.num, "click the link or type " .. cmd_line, text_color, text_bgcolor, 0)
+      is_done_checking["num"] = true
+    else
+      ColourTell(text_color, text_bgcolor, v.text)
+    end
+  end
+  Note()
+end
+
+function hlink_auc_list(name, line, wildcards, styles)
+  local num = tonumber(wildcards.num)
+  local cmd_line = ""
+  
+  if (name == "bid_list") then
+    cmd_line = "bxa " .. num
+  elseif (name == "lbid_list") then
+    cmd_line = "bxm " .. num
+  else
+    SetTriggerOption(name, "omit_from_output", "n")
+    return
+  end
+
+  local is_done_checking_bid_num = false
+
+  for _, v in ipairs(styles) do
+    local text_color = RGBColourToName(v.textcolour)
+    local text_bgcolor = RGBColourToName(v.backcolour)
+
+    if (not is_done_checking_bid_num) and (string.match(v.text, num)) then
+      -- check for spaces before the actual bid num
+      for i = 1, #v.text do
+        if (v.text:sub(i, i) == " ") then
           ColourTell("", "", " ")
         else
           break
         end
       end
-
       Hyperlink(cmd_line, num, "click the link or type " .. cmd_line, text_color, text_bgcolor, 0)
-      SetVariable("last_cmd", cmd_line)
+      is_done_checking_bid_num = true
     else
       ColourTell(text_color, text_bgcolor, v.text)
     end    
   end
-
   Note()
 end
 
-function hlink_bid(name, line, wildcards, styles)
-  hlink_num("bx ", tonumber(wildcards.num), styles)
-end
+function bx_display_item_or_bid_amount(name, line, wildcards, styles)
+  local cmd_line = (GetVariable("last_cmd"))
 
-function hlink_lbid(name, line, wildcards, styles)
-  hlink_num("bxm ", tonumber(wildcards.num), styles)
+  if (wildcards[1] ~= "") then
+    cmd_line = cmd_line .. " " .. wildcards[1]
+  end
+  Execute(cmd_line)
 end
 
 ]]>
