@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-10-28 14:24:51"
    requires="5.07"
-   version="1.1"
+   version="1.1a"
    >
 
 </plugin>
@@ -301,21 +301,19 @@ function hlink_auc_item(name, line, wildcards, styles)
     cmd_line = "bxa " .. wildcards.num
   end
 
-  local is_done_checking = {
-    ["level"] = false,
-    ["num"] = false,
-  }
+  local is_done_checking_level = false
+  local is_done_checking_num = false
   
   for _, v in ipairs(styles) do
     local text_color = RGBColourToName(v.textcolour)
     local text_bgcolor = RGBColourToName(v.backcolour)
 
-    if (not is_done_checking["level"]) and (string.match(v.text, wildcards.level)) and (string.len(v.text) == string.len(wildcards.level)) then
-      ColourTell(text_color, text_bgcolor, wildcards.level)
-      is_done_checking["level"] = true
-    elseif (not is_done_checking["num"]) and (string.match(v.text, wildcards.num)) and (string.len(v.text) == string.len(wildcards.num)) then
-      Hyperlink(cmd_line, wildcards.num, "click the link or type " .. cmd_line, text_color, text_bgcolor, 0)
-      is_done_checking["num"] = true
+    if (not is_done_checking_level) and (string.match(v.text, wildcards.level)) then
+      ColourTell(text_color, text_bgcolor, v.text)
+      is_done_checking_level = true
+    elseif (not is_done_checking_num) and (string.match(v.text, wildcards.num)) then
+      Hyperlink(cmd_line, v.text, "click the link or type " .. cmd_line, text_color, text_bgcolor, 0)
+      is_done_checking_num = true
     else
       ColourTell(text_color, text_bgcolor, v.text)
     end
@@ -344,12 +342,8 @@ function hlink_auc_list(name, line, wildcards, styles)
 
     if (not is_done_checking_bid_num) and (string.match(v.text, num)) then
       -- check for spaces before the actual bid num
-      for i = 1, #v.text do
-        if (v.text:sub(i, i) == " ") then
-          ColourTell("", "", " ")
-        else
-          break
-        end
+      for w in string.gmatch(v.text, " ") do
+        ColourTell("", "", w)
       end
       Hyperlink(cmd_line, num, "click the link or type " .. cmd_line, text_color, text_bgcolor, 0)
       is_done_checking_bid_num = true
