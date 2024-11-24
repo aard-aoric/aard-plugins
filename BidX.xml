@@ -106,7 +106,7 @@
    group="auction"
    name="lbid_list"
    enabled="y"
-   match="^(?P<num>.*\d+?)[ ](?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<currency>\*Gold|Gold|Qp|Tp)(?:[ ]+)(?P<last_bid>[\d,-]+?)(?:[ ]+)(?P<bids>\d+?)(?:[ ]+)(?P<time_left>.+?)$"
+   match="^[ ](?P<num>\d+?)[ ](?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<currency>\*Gold|Gold|Qp|Tp)(?:[ ]+)(?P<last_bid>(.+?))(?:[ ]+)(?P<bids>\d+?)(?:[ ]+)(?P<time_left>.+?)$"
    regexp="y"
    send_to="12"
    script="hlink_auc_list"
