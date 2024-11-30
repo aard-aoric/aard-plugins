@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-10-28 14:24:51"
    requires="5.07"
-   version="1.3"
+   version="1.5"
    >
 
 </plugin>
@@ -24,6 +24,90 @@
 <!--  Triggers  -->
 
 <triggers>
+  <trigger
+   group="auction"
+   name="lbid_num_hist_from_note"
+   enabled="y"
+   match="^(\| )?command \'(?P<cmdline>(?P<cmd>\w+?) (?P<num>\d+?) (?P<hist>\w+?))\' will show the bidding history if the auction(\s+)?$"
+   regexp="y"
+   send_to="12"
+   omit_from_output="y"
+   script="hlink_lbid_num_from_note"
+   sequence="600"
+  >
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="lbid_num_from_note"
+   enabled="y"
+   match="^(\| )?You can use \'(?P<cmdline>(?P<cmd>\w+?) (?P<num>\d+?))\' to check if the auction is still active and the(\s+)?$"
+   regexp="y"
+   send_to="12"
+   omit_from_output="y"
+   script="hlink_lbid_num_from_note"
+   sequence="600"
+  >
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="end_line_rbid_list"
+   enabled="y"
+   match="^(?:[ ]+)?\[ Remort Auction\, Inc\. \(TM\) \- Current List of Inventory \]$"
+   regexp="y"
+   send_to="12"
+   omit_from_output="n"
+   sequence="600"
+  >
+  <send>
+SetVariable("cmd_used_auc_list", "rbid")
+  </send>
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="end_line_bid_list"
+   enabled="y"
+   match="^(?:[ ]+)?\[ Quick Auction\, Inc\. \(TM\) \- Current List of Inventory \]$"
+   regexp="y"
+   send_to="12"
+   omit_from_output="n"
+   sequence="600"
+  >
+  <send>
+SetVariable("cmd_used_auc_list", "bid")
+  </send>
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="end_line_lbid_list"
+   enabled="y"
+   match="^(?:[ ]+)?\[ Aardwolf Marketplace \- Current List of Inventory \]$"
+   regexp="y"
+   send_to="12"
+   omit_from_output="n"
+   sequence="600"
+  >
+  <send>
+SetVariable("cmd_used_auc_list", "lbid")
+  </send>
+  </trigger>
+
+  <trigger
+   group="auction"
+   name="rbid_item_new"
+   enabled="y"
+   match="^Remort Auction\: (?P<seller>\w+?) is (?P<action>\w+?) a level (?P<level>\d+?) (?P<item_desc>.+?) \(Num (?P<num>\d+?)\)\.$"
+   regexp="y"
+   send_to="12"
+   script="hlink_auc_item"
+   omit_from_output="y"
+   sequence="600"
+  >
+  </trigger>
+
   <trigger
    group="auction"
    name="bid_item_new"
@@ -54,7 +138,7 @@
    group="auction"
    name="bid_list"
    enabled="y"
-   match="^(?P<num>.*\d+?)[ ]\-[ ](?P<seller>\w+?)(?:[ ]+)(?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<last_bid>[\d,-]+?)(?:[ ]+)(?P<time>.+?)$"
+   match="^(?:[ ]+)?(?P<num>\d+?)[ ]\-[ ](?P<seller>\w+?)(?:[ ]+)(?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<last_bid>[\d,-]+?)(?:[ ]+)(?P<time>.+?)$"
    regexp="y"
    send_to="12"
    script="hlink_auc_list"
@@ -106,7 +190,7 @@
    group="auction"
    name="lbid_list"
    enabled="y"
-   match="^[ ](?P<num>\d+?)[ ](?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<currency>\*Gold|Gold|Qp|Tp)(?:[ ]+)(?P<last_bid>(.+?))(?:[ ]+)(?P<bids>\d+?)(?:[ ]+)(?P<time_left>.+?)$"
+   match="^(?:[ ]+)?(?P<num>\d+?)[ ](?P<item_desc>.+?)(?:[ ]+)(?P<level>\d+?)(?:[ ]+)(?P<currency>\*Gold|Gold|Qp|Tp)(?:[ ]+)(?P<last_bid>.+?)(?:[ ]+)(?P<bids>\d+?)(?:[ ]+)(?P<time_left>.+?)$"
    regexp="y"
    send_to="12"
    script="hlink_auc_list"
@@ -141,7 +225,8 @@
   <trigger
    group="auction"
    enabled="y"
-   match="Auction, Inc. (TM) currently holds no inventory."
+   match="^(Remort |)?Auction\, Inc\. \(TM\) currently holds no inventory\.$"
+   regexp="y"
    send_to="12"
    script="bx_disable_triggers"
    sequence="530"
@@ -214,9 +299,24 @@ SetVariable("start_auc_line", 1)
 
 <aliases>
   <alias
+   group="auction"
+   match="bxr *"
+   enabled="y"
+   send_to="12"
+   script="bx_ready_triggers"
+   sequence="300"
+  >
+  <send>
+local cmd = "rbid " .. %1
+Execute(cmd)
+SetVariable("last_cmd", cmd)
+  </send>
+  </alias>
+
+  <alias
+   group="auction"
    match="bxa *"
    enabled="y"
-   group="auction"
    send_to="12"
    script="bx_ready_triggers"
    sequence="300"
@@ -229,9 +329,9 @@ SetVariable("last_cmd", cmd)
   </alias>
 
   <alias
+   group="auction"
    match="bxm *"
    enabled="y"
-   group="auction"
    send_to="12"
    script="bx_ready_triggers"
    sequence="300"
@@ -244,10 +344,10 @@ SetVariable("last_cmd", cmd)
   </alias>
 
   <alias
+   group="auction"
    match="^bx(?:[ ]+(\d+?))?$"
    regexp="y"
    enabled="y"
-   group="auction"
    send_to="12"
    script="bx_display_item_or_bid_amount"
    sequence="200"
@@ -260,12 +360,13 @@ SetVariable("last_cmd", cmd)
 
 <variables>
   <variable name="start_auc_line">0</variable>
-  <variable name="last_cmd"></variable>
   <variable name="capture_start">0</variable>
+  <variable name="last_cmd"></variable>
+  <variable name="cmd_used_auc_list"></variable>
 </variables>
 
 
-<!--  Script  -->
+<!--  Scripts  -->
 
 <script>
 <![CDATA[
@@ -297,6 +398,8 @@ function hlink_auc_item(name, line, wildcards, styles)
 
   if (string.match(name, "lbid")) then
     cmd_line = "bxm " .. wildcards.num
+  elseif (string.match(name, "rbid")) then
+    cmd_line = "bxr " .. wildcards.num
   else
     cmd_line = "bxa " .. wildcards.num
   end
@@ -321,13 +424,32 @@ function hlink_auc_item(name, line, wildcards, styles)
   Note()
 end
 
+function hlink_lbid_num_from_note(name, line, wildcards, styles)
+  local cmd_line = wildcards.cmdline
+  
+  for _, v in ipairs(styles) do
+    local text_color = RGBColourToName(v.textcolour)
+    local text_bgcolor = RGBColourToName(v.backcolour)
+
+    if (string.match(v.text, cmd_line)) then
+      Hyperlink(cmd_line, v.text, "click the link or type " .. cmd_line, text_color, text_bgcolor, 0)
+    else
+      ColourTell(text_color, text_bgcolor, v.text)
+    end
+  end
+  Note()
+end
+
 function hlink_auc_list(name, line, wildcards, styles)
   local num = tonumber(wildcards.num)
+  local cmd_used_to_list_auc_items = GetVariable("cmd_used_auc_list")
   local cmd_line = ""
-  
-  if (name == "bid_list") then
+
+  if cmd_used_to_list_auc_items == "rbid" then
+    cmd_line = "bxr " .. num
+  elseif cmd_used_to_list_auc_items == "bid" then
     cmd_line = "bxa " .. num
-  elseif (name == "lbid_list") then
+  elseif cmd_used_to_list_auc_items == "lbid" then
     cmd_line = "bxm " .. num
   else
     SetTriggerOption(name, "omit_from_output", "n")
